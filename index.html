@@ -2878,5 +2878,123 @@ document.getElementById('modal-play-button').addEventListener('click', () => {
       .catch(err => console.error('❌ Service Worker errore:', err));
   }
 </script>
+
+<script>
+
+// ✅ Configurazione TMDB
+const API_KEY = '1e8c9083f94c62dd66fb2105cd7b613b';
+const API_URL = 'https://api.themoviedb.org/3';
+const POSTER_PATH = 'https://image.tmdb.org/t/p/w500';
+const BACKDROP_PATH = 'https://image.tmdb.org/t/p/w1280';
+
+// ✅ Elementi DOM Hero
+const heroBackdropEl = document.getElementById('hero-backdrop');
+const heroTitleEl = document.getElementById('hero-title');
+const heroRatingEl = document.getElementById('hero-rating');
+const heroYearEl = document.getElementById('hero-year');
+const heroRuntimeEl = document.getElementById('hero-runtime');
+const heroOverviewEl = document.getElementById('hero-overview');
+const playButton = document.getElementById('play-button');
+const moreInfoButton = document.getElementById('more-info-button');
+
+// ✅ Funzione di rendering card
+function renderSection(items, containerId, sectionTitle) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  container.innerHTML = `
+    <h2 class="text-xl font-bold mb-4">${sectionTitle}</h2>
+    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+      ${items.map(item => {
+        const title = item.title || item.name || 'Senza titolo';
+        const year = (item.release_date || item.first_air_date || '').split('-')[0] || 'N/D';
+        const poster = item.poster_path ? `${POSTER_PATH}${item.poster_path}` : 'placeholder.jpg';
+
+        return `
+          <div class="cursor-pointer" onclick="handleResultClick(${item.id}, '${item.media_type || 'movie'}', ${JSON.stringify(item).replace(/"/g, '&quot;')})">
+            <img src="${poster}" alt="${title}" class="rounded-lg w-full h-64 object-cover">
+            <h3 class="mt-2 text-sm font-semibold truncate">${title}</h3>
+            <p class="text-gray-400 text-xs">${year}</p>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
+// ✅ Sezione Hero: imposta film in evidenza
+async function loadHeroMovie() {
+  try {
+    const res = await fetch(`${API_URL}/movie/popular?api_key=${API_KEY}&language=it-IT`);
+    const data = await res.json();
+    const movie = data.results?.[0];
+    if (!movie) return;
+
+    heroBackdropEl.style.backgroundImage = `url('${BACKDROP_PATH}${movie.backdrop_path}')`;
+    heroTitleEl.textContent = movie.title;
+    heroRatingEl.textContent = `⭐ ${movie.vote_average}`;
+    heroYearEl.textContent = `Anno: ${movie.release_date?.split('-')[0] || 'N/D'}`;
+    heroRuntimeEl.textContent = `Durata: ${movie.runtime || 'N/D'} min`;
+    heroOverviewEl.textContent = movie.overview;
+
+    playButton.onclick = () => handleResultClick(movie.id, 'movie', movie);
+    moreInfoButton.onclick = () => openModal(movie);
+  } catch (error) {
+    console.error('Errore Hero:', error);
+  }
+}
+
+// ✅ Sezioni contenuto
+async function loadTrendingMovies() {
+  try {
+    const res = await fetch(`${API_URL}/trending/movie/week?api_key=${API_KEY}&language=it-IT`);
+    const data = await res.json();
+    renderSection(data.results, 'trending-movies', 'Film di tendenza');
+  } catch (error) {
+    console.error('Errore trending movies:', error);
+  }
+}
+
+async function loadPopularTV() {
+  try {
+    const res = await fetch(`${API_URL}/tv/popular?api_key=${API_KEY}&language=it-IT`);
+    const data = await res.json();
+    renderSection(data.results, 'popular-tv', 'Serie TV popolari');
+  } catch (error) {
+    console.error('Errore popular TV:', error);
+  }
+}
+
+async function loadTopRatedMovies() {
+  try {
+    const res = await fetch(`${API_URL}/movie/top_rated?api_key=${API_KEY}&language=it-IT`);
+    const data = await res.json();
+    renderSection(data.results, 'top-rated-movies', 'Film più votati');
+  } catch (error) {
+    console.error('Errore top rated movies:', error);
+  }
+}
+
+async function loadUpcomingMovies() {
+  try {
+    const res = await fetch(`${API_URL}/movie/upcoming?api_key=${API_KEY}&language=it-IT`);
+    const data = await res.json();
+    renderSection(data.results, 'upcoming-movies', 'Film in uscita');
+  } catch (error) {
+    console.error('Errore upcoming movies:', error);
+  }
+}
+
+// ✅ Inizializzazione
+document.addEventListener('DOMContentLoaded', () => {
+  loadHeroMovie();
+  loadTrendingMovies();
+  loadPopularTV();
+  loadTopRatedMovies();
+  loadUpcomingMovies();
+});
+
+</script>
+
 </body>
 </html>
