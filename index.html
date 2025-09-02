@@ -1959,34 +1959,18 @@ document.addEventListener('DOMContentLoaded', function() {
     <script src="js/player.js" defer></script>
     <script>
         // TMDB API Configuration
-        const API_KEY = '1e8c9083f94c62dd66fb2105cd7b613b';
-        const API_URL = 'https://api.themoviedb.org/3';
-        const IMG_PATH = 'https://image.tmdb.org/t/p/w1280';
-        const POSTER_PATH = 'https://image.tmdb.org/t/p/w500';
-        const PROXY_URL = 'https://api.leleflix.store/proxy/';
-        
-        // DOM Elements
-        const trendingMoviesEl = document.getElementById('trending-movies');
-        const popularTvEl = document.getElementById('popular-tv');
-        const topRatedMoviesEl = document.getElementById('top-rated-movies');
-        const upcomingMoviesEl = document.getElementById('upcoming-movies');
-        const heroBackdropEl = document.getElementById('hero-backdrop');
-        const heroTitleEl = document.getElementById('hero-title');
-        const heroRatingEl = document.getElementById('hero-rating');
-        const heroYearEl = document.getElementById('hero-year');
-        const heroRuntimeEl = document.getElementById('hero-runtime');
-        const heroOverviewEl = document.getElementById('hero-overview');
-        const playButton = document.getElementById('play-button');
-        const moreInfoButton = document.getElementById('more-info-button');
-        const movieModal = document.getElementById('movie-modal');
-        const playerModal = document.getElementById('player-modal');
-        const closeModal = document.getElementById('close-modal');
-        const closePlayer = document.getElementById('close-player');
-        const modalPlayButton = document.getElementById('modal-play-button');
-        const mobileMenuButton = document.getElementById('mobile-menu-button');
-        const closeMobileMenu = document.getElementById('close-mobile-menu');
-        const mobileMenu = document.getElementById('mobile-menu');
-        
+const API_KEY = '1e8c9083f94c62dd66fb2105cd7b613b';
+const API_URL = 'https://api.themoviedb.org/3';
+const IMG_PATH = 'https://image.tmdb.org/t/p/w1280';
+const POSTER_PATH = 'https://image.tmdb.org/t/p/w500';
+const PROXY_URL = 'https://api.leleflix.store/proxy/';
+
+// DOM Elements
+const resultsGrid = document.getElementById("search-results-grid");
+const searchInput = document.getElementById("search-input");
+const searchResultsSection = document.getElementById("search-results-section");
+const searchQueryText = document.getElementById("search-query-text");
+
 document.querySelectorAll('nav a[href^="#"]').forEach(anchor => {
   anchor.addEventListener('click', () => {
     clearSearch(); // nasconde la vista ricerca se attiva
@@ -1994,33 +1978,40 @@ document.querySelectorAll('nav a[href^="#"]').forEach(anchor => {
 });
 
 async function searchMedia(query) {
-  query = query?.trim() || document.getElementById("search-input").value.trim();
+  query = query?.trim() || searchInput.value.trim();
   if (!query) {
     document.body.classList.remove('show-search-results');
-    document.getElementById("search-results-section").classList.add("hidden");
+    searchResultsSection.classList.add("hidden");
     return;
   }
 
   document.body.classList.add('show-search-results');
-  document.getElementById("search-query-text").textContent = `"${query}"`;
-  const resultsGrid = document.getElementById("search-results-grid");
+  searchQueryText.textContent = `"${query}"`;
   resultsGrid.innerHTML = `
     <div style="grid-column:1/-1; text-align:center; padding:40px;">
       <i class="fas fa-spinner fa-spin" style="font-size:2rem;"></i>
       <p>Ricerca in corso...</p>
     </div>
   `;
-  document.getElementById("search-results-section").classList.remove("hidden");
+  searchResultsSection.classList.remove("hidden");
 
-try {
-        const res = await fetch(`${API_URL}/search/multi?api_key=${API_KEY}&query=${encodeURIComponent(query)}&language=it-IT`);
-        const data = await res.json();
+  try {
+    const res = await fetch(`${API_URL}/search/multi?api_key=${API_KEY}&query=${encodeURIComponent(query)}&language=it-IT`);
+    if (!res.ok) throw new Error(`TMDB fetch error: ${res.status}`);
+    
+    const data = await res.json();
+    const results = data.results || [];
 
-        const filteredResults = (data.results || []).filter(item =>
-            ['movie', 'tv'].includes(item.media_type) &&
-            item.poster_path &&
-            availableContent.some(ac => ac.tmdb_id === item.id)
-        );
+    // Verifica che availableContent sia definito
+    if (typeof availableContent === 'undefined') {
+      console.warn('availableContent non definito. Mostro tutti i risultati con poster.');
+    }
+
+    const filteredResults = results.filter(item =>
+      ['movie', 'tv'].includes(item.media_type) &&
+      item.poster_path &&
+      (typeof availableContent === 'undefined' || availableContent.some(ac => ac.tmdb_id === item.id))
+    );
 
     if (filteredResults.length === 0) {
       resultsGrid.innerHTML = `
@@ -2036,26 +2027,31 @@ try {
       return;
     }
 
+    resultsGrid.innerHTML = filteredResults.map(item => {
+      const isTV = item.media_type === 'tv';
+      const title = isTV ? item.name : item.title;
+      const year = (isTV ? item.first_air_date : item.release_date || '').split('-')[0] || 'N/D';
 
-        resultsGrid.innerHTML = filteredResults.map(item => {
-            const isTV = item.media_type === 'tv';
-            const title = isTV ? item.name : item.title;
-            const year = (isTV ? item.first_air_date : item.release_date || '').split('-')[0] || 'N/D';
-
-            return `
-                <div class="cursor-pointer" onclick="handleResultClick(${item.id}, '${item.media_type}', ${JSON.stringify(item).replace(/"/g, '&quot;')})">
-                    <img src="${POSTER_PATH}${item.poster_path}" alt="${title}" class="rounded-lg w-full h-64 object-cover">
-                    <h3 class="mt-2 text-sm font-semibold truncate">${title}</h3>
-                    <p class="text-gray-400 text-xs">${isTV ? 'Serie TV' : 'Film'} • ${year}</p>
-                </div>
-            `;
-        }).join('');
+      return `
+        <div class="cursor-pointer" onclick="handleResultClick(${item.id}, '${item.media_type}', ${JSON.stringify(item).replace(/"/g, '&quot;')})">
+          <img src="${POSTER_PATH}${item.poster_path}" alt="${title}" class="rounded-lg w-full h-64 object-cover">
+          <h3 class="mt-2 text-sm font-semibold truncate">${title}</h3>
+          <p class="text-gray-400 text-xs">${isTV ? 'Serie TV' : 'Film'} • ${year}</p>
+        </div>
+      `;
+    }).join('');
 
   } catch (err) {
     console.error("Search error:", err);
-    resultsGrid.innerHTML = `<p style="color:white;text-align:center;">Errore nella ricerca</p>`;
+    resultsGrid.innerHTML = `
+      <div style="grid-column:1/-1; text-align:center; padding:40px;">
+        <i class="fas fa-exclamation-triangle" style="font-size:2rem; color:yellow;"></i>
+        <p style="color:white;">Errore nella ricerca. Riprova più tardi.</p>
+      </div>
+    `;
   }
-}
+        }
+
 
 // Gestione clic su risultato
 async function handleResultClick(id, type, itemData = null) {
