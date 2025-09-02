@@ -1738,6 +1738,28 @@ async function getPosterDetails(tmdbId, contentType) {
     }
 }
 
+    async function fetchMoviesCatalog() {
+    try {
+        const response = await fetch('https://vixsrc.to/api/list/movie?lang=it');
+        if (!response.ok) throw new Error(`Errore HTTP: ${response.status}`);
+        return await response.json();
+    } catch (error) {
+        console.error('Errore nel recupero dei film:', error);
+        return [];
+    }
+}
+
+async function fetchTVCatalog() {
+    try {
+        const response = await fetch('https://vixsrc.to/api/list/tv?lang=it');
+        if (!response.ok) throw new Error(`Errore HTTP: ${response.status}`);
+        return await response.json();
+    } catch (error) {
+        console.error('Errore nel recupero delle serie TV:', error);
+        return [];
+    }
+}
+
 // Funzione per visualizzare la sezione "Continua a guardare"
 async function displayContinueWatching() {
     try {
